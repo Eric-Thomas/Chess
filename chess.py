@@ -19,8 +19,21 @@ BROWN = (135, 64, 8)
 FPS = 30
 fpsClock = pygame.time.Clock()
 
+# Given a row and column of the state matrix it returns a touple of the coordinates for the correct rectangle on the display
+def map_state_to_coord(row, column):
+	squareSize = 50	
+	leftOffset = 60
+	topOffset = 10
+	xCoord = leftOffset + (column-2) * squareSize
+	yCoord = topOffset + (row - 2) * squareSize
+	return (xCoord, yCoord)
+
+# Given the coordinates of the mouse it returns the row and column of the state matrix
+def map_coord_to_state(xCoord, yCoord):
+
+
 # Board Class
-""" Board will be a 12x12 array 
+""" Board state will be a 12x12 array 
 99 -> Out of Bounds
 0 -> Empty
 Positive -> White
@@ -33,8 +46,16 @@ Negative -> Black
 6 -> King
 """
 class Board:
-	"""
+	# Board drawing variables
+	squareSize = 50
+	leftOffset = 60
+	topOffset = 10
+	borderWidth = 5
+	borderTop = topOffset - borderWidth + 2
+	borderLeft = leftOffset - borderWidth + 2
+	borderSize = borderWidth*2 + 8*squareSize - 4
 	# Piece image variables
+	"""
 	wPawnImg = pygame.image.load("white pawn.png")
 	bPawnImg = pygame.image.load("black pawn.png")
 	wBishopImg = pygame.image.load("white bishop.png")
@@ -46,7 +67,7 @@ class Board:
 	wQueenImg = pygame.image.load("white queen.png")
 	bQueenImg = pygame.image.load("black queen.png")
 	wKingImg = pygame.image.load("white king.png")
-	bQueenImg = pygame.image.load("black queen.png")
+	bKingImg = pygame.image.load("black king.png")
 	"""
 	# Create Board in new game state
 	def __init__(self):
@@ -103,45 +124,55 @@ class Board:
 
 	# Draw board squares and coordinate system (a-h and 1-8)
 	def draw_board(self):
-		squareSize = 50
-		leftOffset = 60
-		topOffset = 10
-
 		# Create squares
 		for row in range(1,9):
 			for column in range(1,9):
+				rectLeft = self.leftOffset + (column - 1) * self.squareSize
+				rectTop = self.topOffset + (row - 1) * self.squareSize			
+
 				# create white squares
 				if row % 2 == 1 and column % 2 == 1 or (row % 2 == 0 and column % 2 == 0):
-					rectLeft = leftOffset + (column-1) * squareSize
-					rectTop = topOffset + (row - 1) * squareSize
-					wSquare = pygame.Rect(rectLeft, rectTop, squareSize, squareSize)
+					wSquare = pygame.Rect(rectLeft, rectTop, self.squareSize, self.squareSize)
 					pygame.draw.rect(DISPLAYSURF, GRAY, wSquare)
 					
 				# create black squares
 				elif row % 2 == 0 and column % 2 == 1 or (row % 2 == 1 and column % 2 == 0):
-					rectLeft = leftOffset + (column - 1) * squareSize
-					rectTop = topOffset + (row - 1) * squareSize
-					bSquare = pygame.Rect(rectLeft, rectTop, squareSize, squareSize)
+					bSquare = pygame.Rect(rectLeft, rectTop, self.squareSize, self.squareSize)
 					pygame.draw.rect(DISPLAYSURF, BLACK, bSquare)
 
 		# Create border
-		borderWidth = 5
-		borderTop = topOffset - borderWidth + 2
-		borderLeft = leftOffset - borderWidth + 2
-		borderSize = borderWidth*2 + 8*squareSize - 4
-		border = pygame.Rect(borderLeft, borderTop, borderSize, borderSize)
-		pygame.draw.rect(DISPLAYSURF, BLACK, border, borderWidth)
+		border = pygame.Rect(self.borderLeft, self.borderTop, self.borderSize, self.borderSize)
+		pygame.draw.rect(DISPLAYSURF, BLACK, border, self.borderWidth)
 
-		"""
+		
 	# Draw pieces on their squares
 	def draw_pieces(state):
 		for row in range(len(state)):
 			for column in range((len(state[row]))):
-				"""
-
-
-
-
+				if state[row][column] == 1:
+					DISPLAYSURF.blit(wPawnImg, map_state_to_coord(row,column))
+				elif state[row][column] == -1:
+					DISPLAYSURF.blit(bPawnImg, map_state_to_coord(row,column))
+				elif state[row][column] == 2:
+					DISPLAYSURF.blit(wBishopImg, map_state_to_coord(row,column))
+				elif state[row][column] == -2:
+					DISPLAYSURF.blit(bBishopImg, map_state_to_coord(row,column))
+				elif state[row][column] == 3:
+					DISPLAYSURF.blit(wKnightImg, map_state_to_coord(row,column))				
+				elif state[row][column] == -3:
+					DISPLAYSURF.blit(bKnightImg, map_state_to_coord(row,column))
+				elif state[row][column] == 4:
+					DISPLAYSURF.blit(wRookImg, map_state_to_coord(row,column))
+				elif state[row][column] == -4:
+					DISPLAYSURF.blit(bRookImg, map_state_to_coord(row,column))
+				elif state[row][column] == 5:
+					DISPLAYSURF.blit(wQueenImg, map_state_to_coord(row,column))
+				elif state[row][column] == -5:
+					DISPLAYSURF.blit(bQueenImg, map_state_to_coord(row,column))
+				elif state[row][column] == 6:
+					DISPLAYSURF.blit(wKnightImg, map_state_to_coord(row,column))
+				elif state[row][column] == -6:
+					DISPLAYSURF.blit(bKnightImg, map_state_to_coord(row,column))
 # Piece Class
 """
 Each piece will have a value that corresponds to the boards specification
@@ -157,6 +188,7 @@ class Piece:
 		self.enPessant = False
 		self.coords = ()
 		self.legalMoves = []
+		self.captured = False
 		if piece == "pawn":
 			self.enPessant = False
 			if color == "white":
