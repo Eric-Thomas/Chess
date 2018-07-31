@@ -1,5 +1,4 @@
 import pygame, sys
-import copy
 from pygame.locals import *
 
 # set constants
@@ -247,12 +246,10 @@ class Board:
 				if self.state[row][column].value == 6:
 					king = self.state[row][column]
 
-		# Calculate all possible black moves
-		tempBoard = copy.deepcopy(board)
+		# Calculate all balck legal moves
 		possibleBlackMoves = []
-		for piece in tempBoard.blackPieces:
-			piece.set_legal_moves(tempBoard)
-			for move in piece.legalMoves:
+		for piece in board.blackPieces:
+			for move in piece.return_legal_moves(board):
 				possibleBlackMoves.append(move)
 
 		return (king.row, king.column) in possibleBlackMoves
@@ -265,12 +262,10 @@ class Board:
 				if self.state[row][column].value == -6:
 					king = self.state[row][column]
 
-		# Calculate all possible black moves
-		tempBoard = copy.deepcopy(board)
+		# Calculate all possible white moves
 		possibleWhiteMoves = []
-		for piece in tempBoard.whitePieces:
-			piece.set_legal_moves(tempBoard)
-			for move in piece.legalMoves:
+		for piece in board.whitePieces:
+			for move in piece.return_legal_moves(board):
 				possibleWhiteMoves.append(move)
 
 		return (king.row, king.column) in possibleWhiteMoves
@@ -332,38 +327,62 @@ class Piece:
 				else:
 					self.value = -6
 
-	def set_legal_moves(self, board, king=False):
+	def set_legal_moves(self, board):
 		self.legalMoves=[]
 		# Set legal moves for white pawns
 		if self.value == 1:
-			self.set_white_pawn_legal_moves(self.row, self.column, board.state, king)
+			self.white_pawn_legal_moves(self.row, self.column, board.state)
 		# Set legal moves for black pawns
 		elif self.value == -1:
-			self.set_black_pawn_legal_moves(self.row, self.column, board.state, king)
+			self.black_pawn_legal_moves(self.row, self.column, board.state)
 		# Set legal moves for all bishops
 		elif self.value == 2 or self.value == -2:	
-			self.set_bishop_legal_moves(self.row, self.column, board.state)
+			self.bishop_legal_moves(self.row, self.column, board.state)
 		# Set legal moves for all knights
 		elif self.value == 3 or self.value == -3:
-			self.set_knight_legal_moves(self.row, self.column, board.state)
+			self.knight_legal_moves(self.row, self.column, board.state)
 		# Set legal moves for all rooks
 		elif self.value == 4 or self.value == -4:
-			self.set_rook_legal_moves(self.row, self.column, board.state)
+			self.rook_legal_moves(self.row, self.column, board.state)
 		# Set legal moves for all queens
 		elif self.value == 5 or self.value == -5:
-			self.set_bishop_legal_moves(self.row, self.column, board.state)
-			self.set_rook_legal_moves(self.row, self.column, board.state)
+			self.bishop_legal_moves(self.row, self.column, board.state)
+			self.rook_legal_moves(self.row, self.column, board.state)
 		# Set legal moves for white king
-		elif not king and self.value == 6:
-			self.set_white_king_legal_moves(self.row, self.column, board)
+		elif self.value == 6:
+			self.white_king_legal_moves(self.row, self.column, board)
 		# set legal moves for black king
-		elif not king and self.value == -6:
-			self.set_black_king_legal_moves(self.row, self.column, board)
+		elif self.value == -6:
+			self.black_king_legal_moves(self.row, self.column, board)
 
+	def return_legal_moves(self, board):
+		legalMoves=[]
+		# Set legal moves for white pawns
+		if self.value == 1:
+			legalMoves = self.white_pawn_legal_moves(self.row, self.column, board.state, rtrn = True)
+		# Set legal moves for black pawns
+		elif self.value == -1:
+			legalMoves = self.black_pawn_legal_moves(self.row, self.column, board.state, rtrn = True)
+		# Set legal moves for all bishops
+		elif self.value == 2 or self.value == -2:	
+			legalMoves = self.bishop_legal_moves(self.row, self.column, board.state, rtrn = True)
+		# Set legal moves for all knights
+		elif self.value == 3 or self.value == -3:
+			legalMoves = self.knight_legal_moves(self.row, self.column, board.state, rtrn = True)
+		# Set legal moves for all rooks
+		elif self.value == 4 or self.value == -4:
+			legalMoves = self.rook_legal_moves(self.row, self.column, board.state, rtrn = True)
+		# Set legal moves for all queens
+		elif self.value == 5 or self.value == -5:
+			legalMoves = self.bishop_legal_moves(self.row, self.column, board.state, rtrn = True)
+			tempLegalMoves = (self.rook_legal_moves(self.row, self.column, board.state, rtrn = True))
+			for move in tempLegalMoves:
+				legalMoves.append(move)
+		return legalMoves
 
-	def set_white_pawn_legal_moves(self, row, column, state, king):
-		# Check space in front is empty
-		if not king:
+	def white_pawn_legal_moves(self, row, column, state, rtrn = False):
+		if not rtrn:
+			# Check space in front is empty
 			if state[row-1][column].value == 0:
 				self.legalMoves.append((row-1,column))
 				# Check if 2 spaces in front are empty and piece hasn't moved
@@ -376,11 +395,13 @@ class Piece:
 				self.legalMoves.append((row-1, column + 1))
 		# If it is a king only legal moves are to capture diagonally
 		else:
-			self.legalMoves.append((row-1, column-1))
-			self.legalMoves.append((row-1, column + 1))
+			legalMoves = []
+			legalMoves.append((row-1, column-1))
+			legalMoves.append((row-1, column + 1))
+			return legalMoves
 
-	def set_black_pawn_legal_moves(self, row, column, state, king):
-		if not king:
+	def black_pawn_legal_moves(self, row, column, state, rtrn = False):
+		if not rtrn:
 			if state[row + 1][column].value == 0:
 				self.legalMoves.append((row+1, column))
 				if state[row+2][column].value == 0 and not self.moved:
@@ -390,131 +411,227 @@ class Piece:
 			if 0 < state[row+1][column+1].value < 99 or (state[row][column+1].value == 1 and state[row][column+1].enPessant and state[row+1][column+1].value == 0):
 				self.legalMoves.append((row+1, column+1))
 		else:
-			self.legalMoves.append((row+1, column-1))
-			self.legalMoves.append((row+1, column+1))
+			legalMoves = []
+			legalMoves.append((row+1, column-1))
+			legalMoves.append((row+1, column+1))
+			return legalMoves
 
-	def set_bishop_legal_moves(self, row, column, state):
+	def bishop_legal_moves(self, row, column, state, rtrn = False):
+		if rtrn:
+			legalMoves = []
 		# check front left diagonal empty spaces
 		tempRow = row
 		tempColumn = column
 		while state[tempRow-1][tempColumn-1].value == 0:
-			self.legalMoves.append((tempRow-1, tempColumn-1))
+			if not rtrn:
+				self.legalMoves.append((tempRow-1, tempColumn-1))
+			else:
+				legalMoves.append((tempRow-1, tempColumn-1))
 			empties = True
 			tempRow -= 1
 			tempColumn -= 1
 		# Check to see if next space is enemy
 		# set white enemies
 		if self.value > 0 and state[tempRow-1][tempColumn-1].value < 0:
-			self.legalMoves.append((tempRow-1, tempColumn-1))
+			if not rtrn:
+				self.legalMoves.append((tempRow-1, tempColumn-1))
+			else:
+				legalMoves.append((tempRow-1, tempColumn-1))
 		# set black enemies
 		elif self.value < 0 and 0 <  state[tempRow-1][tempColumn-1].value < 99:
-			self.legalMoves.append((tempRow-1, tempColumn-1))
+			if not rtrn:
+				self.legalMoves.append((tempRow-1, tempColumn-1))
+			else:
+				legalMoves.append((tempRow-1, tempColumn-1))
 		# check front right diagonal empty spaces
 		tempRow = row
 		tempColumn = column
 		while state[tempRow-1][tempColumn+1].value == 0:
-			self.legalMoves.append((tempRow-1, tempColumn+1))
+			if not rtrn:
+				self.legalMoves.append((tempRow-1, tempColumn+1))
+			else:
+				legalMoves.append((tempRow-1, tempColumn+1))
 			empties = True
 			tempRow -= 1
 			tempColumn += 1
 		# Check to see if next space is enemy
 		# Set white enemies
 		if self.value > 0 and state[tempRow-1][tempColumn+1].value < 0:
-			self.legalMoves.append((tempRow-1, tempColumn+1))
+			if not rtrn:
+				self.legalMoves.append((tempRow-1, tempColumn+1))
+			else:
+				legalMoves.append((tempRow-1, tempColumn+1))
 		# Set balck enemies
 		elif self.value < 0 and 0 < state[tempRow-1][tempColumn+1].value < 99:
-			self.legalMoves.append((tempRow-1, tempColumn+1))
+			if not rtrn:
+				self.legalMoves.append((tempRow-1, tempColumn+1))
+			else:
+				legalMoves.append((tempRow-1, tempColumn+1))
 		# check back left diagonal empty spaces
 		tempRow = row
 		tempColumn = column
 		while state[tempRow+1][tempColumn-1].value == 0:
-			self.legalMoves.append((tempRow+1, tempColumn-1))
+			if not rtrn:
+				self.legalMoves.append((tempRow+1, tempColumn-1))
+			else:
+				legalMoves.append((tempRow+1, tempColumn-1))
 			empties = True
 			tempRow += 1
 			tempColumn -= 1
 		# Check to see if next space is enemy
 		# Set white enemies
 		if self.value > 0 and state[tempRow+1][tempColumn-1].value < 0:
-			self.legalMoves.append((tempRow+1, tempColumn-1))
+			if not rtrn:
+				self.legalMoves.append((tempRow+1, tempColumn-1))
+			else:
+				legalMoves.append((tempRow+1, tempColumn-1))
 		# Set black enemies
 		elif self.value < 0 and 0 <  state[tempRow+1][tempColumn-1].value < 99:
-			self.legalMoves.append((tempRow+1, tempColumn-1))
+			if not rtrn:
+				self.legalMoves.append((tempRow+1, tempColumn-1))
+			else:
+				legalMoves.append((tempRow+1, tempColumn-1))
 		# check back right diagonal empty spaces
 		tempRow = row
 		tempColumn = column
 		while state[tempRow+1][tempColumn+1].value == 0:
-			self.legalMoves.append((tempRow+1, tempColumn+1))
+			if not rtrn:
+				self.legalMoves.append((tempRow+1, tempColumn+1))
+			else:
+				legalMoves.append((tempRow+1, tempColumn+1))
 			empties = True
 			tempRow += 1
 			tempColumn += 1
 		# Check to see if next space is enemy
 		if self.value > 0 and state[tempRow+1][tempColumn+1].value < 0:
-			self.legalMoves.append((tempRow+1, tempColumn+1))	
+			if not rtrn:
+				self.legalMoves.append((tempRow+1, tempColumn+1))	
+			else:
+				legalMoves.append((tempRow+1, tempColumn+1))	
 		elif self.value < 0 and 0 < state[tempRow+1][tempColumn+1].value < 99:
-			self.legalMoves.append((tempRow+1, tempColumn+1))	
+			if not rtrn:
+				self.legalMoves.append((tempRow+1, tempColumn+1))	
+			else:
+				legalMoves.append((tempRow+1, tempColumn+1))
 
-	def set_knight_legal_moves(self, row, column, state):
+		if rtrn:
+			return legalMoves
+
+	def knight_legal_moves(self, row, column, state, rtrn = False):
+		if rtrn:
+			legalMoves = []
 		# Set empty spaces as legal moves
 		knightMoves = [(row-2, column-1), (row-2, column+1), (row-1, column+2), (row-1,column-2), (row+2, column-1), (row+2, column+1), (row+1, column-2), (row+1, column+2)] 
 		for square in knightMoves:
 			if state[square[0]][square[1]].value == 0:
-				self.legalMoves.append(square)
+				if not rtrn:
+					self.legalMoves.append(square)
+				else:
+					legalMoves.append(square)
 			if self.value > 0 and state[square[0]][square[1]].value < 0:
-				self.legalMoves.append(square)
+				if not rtrn:
+					self.legalMoves.append(square)
+				else:
+					legalMoves.append(square)
 			elif self.value < 0 and 0 < state[square[0]][square[1]].value < 99:
-				self.legalMoves.append(square)
+				if not rtrn:
+					self.legalMoves.append(square)
+				else:
+					legalMoves.append(square)
+		if rtrn:
+			return legalMoves
 
-	def set_rook_legal_moves(self, row, column, state):
+	def rook_legal_moves(self, row, column, state, rtrn = False):
+		if rtrn:
+			legalMoves = []
 		# Check front spaces
 		tempRow = row
 		tempColumn = column
 		while state[tempRow-1][tempColumn].value == 0:
-			self.legalMoves.append((tempRow-1, tempColumn))
+			if not rtrn:
+				self.legalMoves.append((tempRow-1, tempColumn))
+			else:
+				legalMoves.append((tempRow-1, tempColumn))
 			tempRow -= 1
 		# Check for enemies
 		if self.value > 0 and state[tempRow-1][tempColumn].value < 0:
-			self.legalMoves.append((tempRow-1, tempColumn))
+			if not rtrn:
+				self.legalMoves.append((tempRow-1, tempColumn))
+			else:
+				legalMoves.append((tempRow-1, tempColumn))
 		elif self.value < 0 and 0 < state[tempRow-1][tempColumn].value < 99:
-			self.legalMoves.append((tempRow-1, tempColumn))
+			if not rtrn:
+				self.legalMoves.append((tempRow-1, tempColumn))
+			else:
+				legalMoves.append((tempRow-1, tempColumn))
 		# Check back spaces
 		tempRow = row
 		while state[tempRow+1][tempColumn].value == 0:
-			self.legalMoves.append((tempRow+1, tempColumn))
+			if not rtrn:
+				self.legalMoves.append((tempRow+1, tempColumn))
+			else:
+				legalMoves.append((tempRow+1, tempColumn))
 			tempRow += 1
 		# Check for enemies
 		if self.value > 0 and state[tempRow+1][tempColumn].value < 0:
-			self.legalMoves.append((tempRow+1, tempColumn))
+			if not rtrn:
+				self.legalMoves.append((tempRow+1, tempColumn))
+			else:
+				legalMoves.append((tempRow+1, tempColumn))
 		elif self.value < 0 and 0 < state[tempRow+1][tempColumn].value < 99:
-			self.legalMoves.append((tempRow+1, tempColumn))
+			if not rtrn:
+				self.legalMoves.append((tempRow+1, tempColumn))
+			else:
+				legalMoves.append((tempRow+1, tempColumn))
 		# Check left spaces
 		tempRow = row
 		while state[tempRow][tempColumn-1].value == 0:
-			self.legalMoves.append((tempRow, tempColumn-1))
+			if not rtrn:
+				self.legalMoves.append((tempRow, tempColumn-1))
+			else:
+				legalMoves.append((tempRow, tempColumn-1))
 			tempColumn -= 1
 		# Check for enemies
 		if self.value > 0 and state[tempRow][tempColumn-1].value < 0:
-			self.legalMoves.append((tempRow, tempColumn-1))
+			if not rtrn:
+				self.legalMoves.append((tempRow, tempColumn-1))
+			else:
+				legalMoves.append((tempRow, tempColumn-1))
 		elif self.value < 0 and 0 < state[tempRow][tempColumn-1].value < 99:
-			self.legalMoves.append((tempRow, tempColumn-1))
+			if not rtrn:
+				self.legalMoves.append((tempRow, tempColumn-1))
+			else:
+				legalMoves.append((tempRow, tempColumn-1))
 		# Check right spaces
 		tempColumn = column
 		while state[tempRow][tempColumn+1].value == 0:
-			self.legalMoves.append((tempRow, tempColumn+1))
+			if not rtrn:
+				self.legalMoves.append((tempRow, tempColumn+1))
+			else:
+				legalMoves.append((tempRow, tempColumn+1))
 			tempColumn += 1
 		# Check for enemies
 		if self.value > 0 and state[tempRow][tempColumn+1].value < 0:
-			self.legalMoves.append((tempRow, tempColumn+1))
+			if not rtrn:
+				self.legalMoves.append((tempRow, tempColumn+1))
+			else:
+				legalMoves.append((tempRow, tempColumn+1))
 		elif self.value < 0 and 0 < state[tempRow][tempColumn+1].value < 99:
-			self.legalMoves.append((tempRow, tempColumn+1))
+			if not rtrn:
+				self.legalMoves.append((tempRow, tempColumn+1))
+			else:
+				legalMoves.append((tempRow, tempColumn+1))
 
-	def set_white_king_legal_moves(self, row, column, board):
+		if rtrn:
+			return legalMoves
+
+	def white_king_legal_moves(self, row, column, board):
 		kingMoves = [(row+1, column), (row-1, column), (row, column-1), (row, column+1), (row+1, column+1), (row+1, column-1), (row-1, column+1), (row-1, column-1)]
-		tempBoard = copy.deepcopy(board)
-		# Calculate all possible black moves
+
+		# Calculate all balck legal moves
 		possibleBlackMoves = []
-		for piece in tempBoard.blackPieces:
-			piece.set_legal_moves(tempBoard, True)
-			for move in piece.legalMoves:
+		for piece in board.blackPieces:
+			for move in piece.return_legal_moves(board):
 				possibleBlackMoves.append(move)
 
 		# For each of the possible king moves, make sure he isn't under attack by moving to a possible black move
@@ -537,14 +654,12 @@ class Piece:
 				if (self.row, self.column) not in possibleBlackMoves and (self.row, self.column-1) not in possibleBlackMoves and (self.row, self.column-2) not in possibleBlackMoves:
 					self.legalMoves.append((self.row, self.column-2))
 
-	def set_black_king_legal_moves(self, row, column, board):
+	def black_king_legal_moves(self, row, column, board):
 		kingMoves = [(row+1, column), (row-1, column), (row, column-1), (row, column+1), (row+1, column+1), (row+1, column-1), (row-1, column+1), (row-1, column-1)]
-		tempBoard = copy.deepcopy(board)
-		# Calculate all possible black moves
+		# Calculate all possible white moves
 		possibleWhiteMoves = []
-		for piece in tempBoard.whitePieces:
-			piece.set_legal_moves(tempBoard, True)
-			for move in piece.legalMoves:
+		for piece in board.whitePieces:
+			for move in piece.return_legal_moves(board):
 				possibleWhiteMoves.append(move)
 
 		# For each of the possible king moves, make sure he isn't under attack by moving to a possible black move
