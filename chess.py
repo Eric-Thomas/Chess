@@ -1,5 +1,6 @@
 import pygame, sys
 from pygame.locals import *
+import copy
 
 # set constants
 screenWidth = 584
@@ -53,7 +54,7 @@ Negative -> Black
 5 -> Queen
 6 -> King
 
-Board will have boolean variables for what color move it is, if any piece is currently highlighted, and if either color is in check
+Board will have boolean variables for what color move it is, if any piece is currently highlighted, and if either color is in check or checkmate
 
 Board will have lists with all piece of each color
 """
@@ -66,8 +67,10 @@ class Board:
 	def __init__(self):
 		self.whiteMove = True
 		self.anyPieceIsHighlighted = False
-		self.whiteCheck = False
-		self.blackCheck = False
+		self.whiteInCheck = False
+		self.whiteInCheckMate = False
+		self.blackInCheck = False
+		self.blackInCheckMate = False
 		self.whitePieces = []
 		self.blackPieces = []
 
@@ -120,6 +123,8 @@ class Board:
 		self.set_piece_lists()			
 
 	def set_piece_lists(self):
+		self.whitePieces = []
+		self.blackPieces = []
 		for row in range(len(self.state)):
 			for column in range(len(self.state[row])):
 				if 0 < self.state[row][column].value < 99:
@@ -128,7 +133,7 @@ class Board:
 					self.blackPieces.append(self.state[row][column])
 
 	# Draw board squares and coordinate system (a-h and 1-8)
-	def draw_board(self, legalMoves = []):
+	def draw_board(self, legalMoves = set()):
 		# Create squares
 		for row in range(1,9):
 			for column in range(1,9):
@@ -186,11 +191,11 @@ class Board:
 
 	def move_piece(self, piece, row, column):
 		# Check to see if piece was captured via en pessant
-		if piece.value == -1 or piece.value == 1:
-			if self.state[row][column].value == 0:
+		if piece.value == 1 or piece.value == -1:
+			if column == piece.column-1 and self.state[row][column-1].value == 0 or (column == piece.column+1 and self.state[row][column+1].value == 0):
 				if piece.value == 1:
 					# Caputre black piece
-					self.state[row+1][column] = Piece()
+					self.state[row+1][column] = Piece()	
 				else:
 					self.state[row-1][column] = Piece()
 
@@ -201,7 +206,7 @@ class Board:
 
 		# Check to see if move is a castle
 		if piece.value == 6 or piece.value == -6:
-			if column == self.state[piece.row][piece.column-2] or column == self.state[piece.row][piece.column+2]:
+			if column == piece.column-2 or column == piece.column+2:
 				# Move queenside rook
 				if column == piece.column-2:
 					self.state[piece.row][piece.column-1] = self.state[piece.row][piece.column-4]
@@ -239,6 +244,9 @@ class Board:
 		piece.column = column
 		piece.moved = True
 
+		# Update piece lists
+		self.set_piece_lists()
+
 	def white_in_check(self):
 		# Find white king
 		for row in range(len(self.state)):
@@ -247,13 +255,16 @@ class Board:
 					king = self.state[row][column]
 
 		# Calculate all balck legal moves
-		possibleBlackMoves = []
-		for piece in board.blackPieces:
-			for move in piece.return_legal_moves(board):
-				possibleBlackMoves.append(move)
+		self.possibleBlackMoves = set()
+		for piece in self.blackPieces:
+			for move in piece.return_legal_moves(self):
+				self.possibleBlackMoves.add(move)
 
-		return (king.row, king.column) in possibleBlackMoves
+		return (king.row, king.column) in self.possibleBlackMoves
 
+
+	def white_in_check_mate(self):
+		todo = "this"
 
 	def black_in_check(self):
 		# Find white king
@@ -263,12 +274,16 @@ class Board:
 					king = self.state[row][column]
 
 		# Calculate all possible white moves
-		possibleWhiteMoves = []
-		for piece in board.whitePieces:
-			for move in piece.return_legal_moves(board):
-				possibleWhiteMoves.append(move)
+		possibleWhiteMoves = set()
+		for piece in self.whitePieces:
+			for move in piece.return_legal_moves(self):
+				possibleWhiteMoves.add(move)
 
 		return (king.row, king.column) in possibleWhiteMoves
+	
+
+	def black_in_check_mate(self):
+		todo = "this"
 
 # Piece Class
 """
@@ -294,7 +309,7 @@ class Piece:
 			self.moved = False
 			self.row = row
 			self.column = column
-			self.legalMoves = []
+			self.legalMoves = set()
 			if piece == "pawn":
 				self.enPessant = False
 				if color == "white":
@@ -328,26 +343,26 @@ class Piece:
 					self.value = -6
 
 	def set_legal_moves(self, board):
-		self.legalMoves=[]
+		self.legalMoves = set()
 		# Set legal moves for white pawns
 		if self.value == 1:
-			self.white_pawn_legal_moves(self.row, self.column, board.state)
+			self.white_pawn_legal_moves(self.row, self.column, board)
 		# Set legal moves for black pawns
 		elif self.value == -1:
-			self.black_pawn_legal_moves(self.row, self.column, board.state)
+			self.black_pawn_legal_moves(self.row, self.column, board)
 		# Set legal moves for all bishops
 		elif self.value == 2 or self.value == -2:	
-			self.bishop_legal_moves(self.row, self.column, board.state)
+			self.bishop_legal_moves(self.row, self.column, board)
 		# Set legal moves for all knights
 		elif self.value == 3 or self.value == -3:
-			self.knight_legal_moves(self.row, self.column, board.state)
+			self.knight_legal_moves(self.row, self.column, board)
 		# Set legal moves for all rooks
 		elif self.value == 4 or self.value == -4:
-			self.rook_legal_moves(self.row, self.column, board.state)
+			self.rook_legal_moves(self.row, self.column, board)
 		# Set legal moves for all queens
 		elif self.value == 5 or self.value == -5:
-			self.bishop_legal_moves(self.row, self.column, board.state)
-			self.rook_legal_moves(self.row, self.column, board.state)
+			self.bishop_legal_moves(self.row, self.column, board)
+			self.rook_legal_moves(self.row, self.column, board)
 		# Set legal moves for white king
 		elif self.value == 6:
 			self.white_king_legal_moves(self.row, self.column, board)
@@ -355,272 +370,286 @@ class Piece:
 		elif self.value == -6:
 			self.black_king_legal_moves(self.row, self.column, board)
 
+		# Check to make sure no legal moves puts king in check
+		tempLegalMoves = copy.deepcopy(self.legalMoves)
+		for move in tempLegalMoves:
+			tempPiece = copy.deepcopy(self)
+			tempBoard = copy.deepcopy(board)
+			tempBoard.move_piece(tempPiece, move[0], move[1])
+			if board.whiteMove:
+				if tempBoard.white_in_check():
+					self.legalMoves.remove(move)
+			else:
+				if tempBoard.black_in_check():
+					self.legalMoves.remove(move)
+
 	def return_legal_moves(self, board):
-		legalMoves=[]
+		legalMoves = set()
 		# Set legal moves for white pawns
 		if self.value == 1:
-			legalMoves = self.white_pawn_legal_moves(self.row, self.column, board.state, rtrn = True)
+			legalMoves = self.white_pawn_legal_moves(self.row, self.column, board, rtrn = True)
 		# Set legal moves for black pawns
 		elif self.value == -1:
-			legalMoves = self.black_pawn_legal_moves(self.row, self.column, board.state, rtrn = True)
+			legalMoves = self.black_pawn_legal_moves(self.row, self.column, board, rtrn = True)
 		# Set legal moves for all bishops
 		elif self.value == 2 or self.value == -2:	
-			legalMoves = self.bishop_legal_moves(self.row, self.column, board.state, rtrn = True)
+			legalMoves = self.bishop_legal_moves(self.row, self.column, board, rtrn = True)
 		# Set legal moves for all knights
 		elif self.value == 3 or self.value == -3:
-			legalMoves = self.knight_legal_moves(self.row, self.column, board.state, rtrn = True)
+			legalMoves = self.knight_legal_moves(self.row, self.column, board, rtrn = True)
 		# Set legal moves for all rooks
 		elif self.value == 4 or self.value == -4:
-			legalMoves = self.rook_legal_moves(self.row, self.column, board.state, rtrn = True)
+			legalMoves = self.rook_legal_moves(self.row, self.column, board, rtrn = True)
 		# Set legal moves for all queens
 		elif self.value == 5 or self.value == -5:
-			legalMoves = self.bishop_legal_moves(self.row, self.column, board.state, rtrn = True)
-			tempLegalMoves = (self.rook_legal_moves(self.row, self.column, board.state, rtrn = True))
+			legalMoves = self.bishop_legal_moves(self.row, self.column, board, rtrn = True)
+			tempLegalMoves = (self.rook_legal_moves(self.row, self.column, board, rtrn = True))
 			for move in tempLegalMoves:
-				legalMoves.append(move)
+				legalMoves.add(move)
 		return legalMoves
 
-	def white_pawn_legal_moves(self, row, column, state, rtrn = False):
+	def white_pawn_legal_moves(self, row, column, board, rtrn = False):
 		if not rtrn:
 			# Check space in front is empty
-			if state[row-1][column].value == 0:
-				self.legalMoves.append((row-1,column))
+			if board.state[row-1][column].value == 0:
+				self.legalMoves.add((row-1,column))
 				# Check if 2 spaces in front are empty and piece hasn't moved
-				if state[row-2][column].value == 0 and not self.moved:
-					self.legalMoves.append((row-2,column))
+				if board.state[row-2][column].value == 0 and not self.moved:
+					self.legalMoves.add((row-2,column))
 			# Check if pawn can capture diagonally normally or via en pessant
-			if state[row-1][column-1].value < 0 or (state[row][column-1].value == -1 and state[row][column-1].enPessant and state[row-1][column-1].value == 0):
-				self.legalMoves.append((row-1, column-1))
-			if state[row-1][column+1].value < 0 or (state[row][column+1].value == -1 and state[row][column+1].enPessant and state[row-1][column+1].value == 0):
-				self.legalMoves.append((row-1, column + 1))
+			if board.state[row-1][column-1].value < 0 or (board.state[row][column-1].value == -1 and board.state[row][column-1].enPessant and board.state[row-1][column-1].value == 0):
+				self.legalMoves.add((row-1, column-1))
+			if board.state[row-1][column+1].value < 0 or (board.state[row][column+1].value == -1 and board.state[row][column+1].enPessant and board.state[row-1][column+1].value == 0):
+				self.legalMoves.add((row-1, column + 1))
+
 		# If it is a king only legal moves are to capture diagonally
 		else:
-			legalMoves = []
-			legalMoves.append((row-1, column-1))
-			legalMoves.append((row-1, column + 1))
+			legalMoves = set()
+			legalMoves.add((row-1, column-1))
+			legalMoves.add((row-1, column + 1))
 			return legalMoves
 
-	def black_pawn_legal_moves(self, row, column, state, rtrn = False):
+	def black_pawn_legal_moves(self, row, column, board, rtrn = False):
 		if not rtrn:
-			if state[row + 1][column].value == 0:
-				self.legalMoves.append((row+1, column))
-				if state[row+2][column].value == 0 and not self.moved:
-					self.legalMoves.append((row+2,column))
-			if 0 < state[row+1][column-1].value < 99 or (state[row][column-1].value == 1 and state[row][column-1].enPessant and state[row+1][column-1].value == 0):
-				self.legalMoves.append((row+1, column-1))
-			if 0 < state[row+1][column+1].value < 99 or (state[row][column+1].value == 1 and state[row][column+1].enPessant and state[row+1][column+1].value == 0):
-				self.legalMoves.append((row+1, column+1))
+			if board.state[row + 1][column].value == 0:
+				self.legalMoves.add((row+1, column))
+				if board.state[row+2][column].value == 0 and not self.moved:
+					self.legalMoves.add((row+2,column))
+			if 0 < board.state[row+1][column-1].value < 99 or (board.state[row][column-1].value == 1 and board.state[row][column-1].enPessant and board.state[row+1][column-1].value == 0):
+				self.legalMoves.add((row+1, column-1))
+			if 0 < board.state[row+1][column+1].value < 99 or (board.state[row][column+1].value == 1 and board.state[row][column+1].enPessant and board.state[row+1][column+1].value == 0):
+				self.legalMoves.add((row+1, column+1))
 		else:
-			legalMoves = []
-			legalMoves.append((row+1, column-1))
-			legalMoves.append((row+1, column+1))
+			legalMoves = set()
+			legalMoves.add((row+1, column-1))
+			legalMoves.add((row+1, column+1))
 			return legalMoves
 
-	def bishop_legal_moves(self, row, column, state, rtrn = False):
+	def bishop_legal_moves(self, row, column, board, rtrn = False):
 		if rtrn:
-			legalMoves = []
+			legalMoves = set()
 		# check front left diagonal empty spaces
 		tempRow = row
 		tempColumn = column
-		while state[tempRow-1][tempColumn-1].value == 0:
+		while board.state[tempRow-1][tempColumn-1].value == 0:
 			if not rtrn:
-				self.legalMoves.append((tempRow-1, tempColumn-1))
+				self.legalMoves.add((tempRow-1, tempColumn-1))
 			else:
-				legalMoves.append((tempRow-1, tempColumn-1))
+				legalMoves.add((tempRow-1, tempColumn-1))
 			empties = True
 			tempRow -= 1
 			tempColumn -= 1
 		# Check to see if next space is enemy
 		# set white enemies
-		if self.value > 0 and state[tempRow-1][tempColumn-1].value < 0:
+		if self.value > 0 and board.state[tempRow-1][tempColumn-1].value < 0:
 			if not rtrn:
-				self.legalMoves.append((tempRow-1, tempColumn-1))
+				self.legalMoves.add((tempRow-1, tempColumn-1))
 			else:
-				legalMoves.append((tempRow-1, tempColumn-1))
+				legalMoves.add((tempRow-1, tempColumn-1))
 		# set black enemies
-		elif self.value < 0 and 0 <  state[tempRow-1][tempColumn-1].value < 99:
+		elif self.value < 0 and 0 < board.state[tempRow-1][tempColumn-1].value < 99:
 			if not rtrn:
-				self.legalMoves.append((tempRow-1, tempColumn-1))
+				self.legalMoves.add((tempRow-1, tempColumn-1))
 			else:
-				legalMoves.append((tempRow-1, tempColumn-1))
+				legalMoves.add((tempRow-1, tempColumn-1))
 		# check front right diagonal empty spaces
 		tempRow = row
 		tempColumn = column
-		while state[tempRow-1][tempColumn+1].value == 0:
+		while board.state[tempRow-1][tempColumn+1].value == 0:
 			if not rtrn:
-				self.legalMoves.append((tempRow-1, tempColumn+1))
+				self.legalMoves.add((tempRow-1, tempColumn+1))
 			else:
-				legalMoves.append((tempRow-1, tempColumn+1))
+				legalMoves.add((tempRow-1, tempColumn+1))
 			empties = True
 			tempRow -= 1
 			tempColumn += 1
 		# Check to see if next space is enemy
 		# Set white enemies
-		if self.value > 0 and state[tempRow-1][tempColumn+1].value < 0:
+		if self.value > 0 and board.state[tempRow-1][tempColumn+1].value < 0:
 			if not rtrn:
-				self.legalMoves.append((tempRow-1, tempColumn+1))
+				self.legalMoves.add((tempRow-1, tempColumn+1))
 			else:
-				legalMoves.append((tempRow-1, tempColumn+1))
+				legalMoves.add((tempRow-1, tempColumn+1))
 		# Set balck enemies
-		elif self.value < 0 and 0 < state[tempRow-1][tempColumn+1].value < 99:
+		elif self.value < 0 and 0 < board.state[tempRow-1][tempColumn+1].value < 99:
 			if not rtrn:
-				self.legalMoves.append((tempRow-1, tempColumn+1))
+				self.legalMoves.add((tempRow-1, tempColumn+1))
 			else:
-				legalMoves.append((tempRow-1, tempColumn+1))
+				legalMoves.add((tempRow-1, tempColumn+1))
 		# check back left diagonal empty spaces
 		tempRow = row
 		tempColumn = column
-		while state[tempRow+1][tempColumn-1].value == 0:
+		while board.state[tempRow+1][tempColumn-1].value == 0:
 			if not rtrn:
-				self.legalMoves.append((tempRow+1, tempColumn-1))
+				self.legalMoves.add((tempRow+1, tempColumn-1))
 			else:
-				legalMoves.append((tempRow+1, tempColumn-1))
+				legalMoves.add((tempRow+1, tempColumn-1))
 			empties = True
 			tempRow += 1
 			tempColumn -= 1
 		# Check to see if next space is enemy
 		# Set white enemies
-		if self.value > 0 and state[tempRow+1][tempColumn-1].value < 0:
+		if self.value > 0 and board.state[tempRow+1][tempColumn-1].value < 0:
 			if not rtrn:
-				self.legalMoves.append((tempRow+1, tempColumn-1))
+				self.legalMoves.add((tempRow+1, tempColumn-1))
 			else:
-				legalMoves.append((tempRow+1, tempColumn-1))
+				legalMoves.add((tempRow+1, tempColumn-1))
 		# Set black enemies
-		elif self.value < 0 and 0 <  state[tempRow+1][tempColumn-1].value < 99:
+		elif self.value < 0 and 0 < board.state[tempRow+1][tempColumn-1].value < 99:
 			if not rtrn:
-				self.legalMoves.append((tempRow+1, tempColumn-1))
+				self.legalMoves.add((tempRow+1, tempColumn-1))
 			else:
-				legalMoves.append((tempRow+1, tempColumn-1))
+				legalMoves.add((tempRow+1, tempColumn-1))
 		# check back right diagonal empty spaces
 		tempRow = row
 		tempColumn = column
-		while state[tempRow+1][tempColumn+1].value == 0:
+		while board.state[tempRow+1][tempColumn+1].value == 0:
 			if not rtrn:
-				self.legalMoves.append((tempRow+1, tempColumn+1))
+				self.legalMoves.add((tempRow+1, tempColumn+1))
 			else:
-				legalMoves.append((tempRow+1, tempColumn+1))
+				legalMoves.add((tempRow+1, tempColumn+1))
 			empties = True
 			tempRow += 1
 			tempColumn += 1
 		# Check to see if next space is enemy
-		if self.value > 0 and state[tempRow+1][tempColumn+1].value < 0:
+		if self.value > 0 and board.state[tempRow+1][tempColumn+1].value < 0:
 			if not rtrn:
-				self.legalMoves.append((tempRow+1, tempColumn+1))	
+				self.legalMoves.add((tempRow+1, tempColumn+1))	
 			else:
-				legalMoves.append((tempRow+1, tempColumn+1))	
-		elif self.value < 0 and 0 < state[tempRow+1][tempColumn+1].value < 99:
+				legalMoves.add((tempRow+1, tempColumn+1))	
+		elif self.value < 0 and 0 < board.state[tempRow+1][tempColumn+1].value < 99:
 			if not rtrn:
-				self.legalMoves.append((tempRow+1, tempColumn+1))	
+				self.legalMoves.add((tempRow+1, tempColumn+1))	
 			else:
-				legalMoves.append((tempRow+1, tempColumn+1))
+				legalMoves.add((tempRow+1, tempColumn+1))
 
 		if rtrn:
 			return legalMoves
 
-	def knight_legal_moves(self, row, column, state, rtrn = False):
+	def knight_legal_moves(self, row, column, board, rtrn = False):
 		if rtrn:
-			legalMoves = []
+			legalMoves = set()
 		# Set empty spaces as legal moves
 		knightMoves = [(row-2, column-1), (row-2, column+1), (row-1, column+2), (row-1,column-2), (row+2, column-1), (row+2, column+1), (row+1, column-2), (row+1, column+2)] 
 		for square in knightMoves:
-			if state[square[0]][square[1]].value == 0:
+			if board.state[square[0]][square[1]].value == 0:
 				if not rtrn:
-					self.legalMoves.append(square)
+					self.legalMoves.add(square)
 				else:
-					legalMoves.append(square)
-			if self.value > 0 and state[square[0]][square[1]].value < 0:
+					legalMoves.add(square)
+			if self.value > 0 and board.state[square[0]][square[1]].value < 0:
 				if not rtrn:
-					self.legalMoves.append(square)
+					self.legalMoves.add(square)
 				else:
-					legalMoves.append(square)
-			elif self.value < 0 and 0 < state[square[0]][square[1]].value < 99:
+					legalMoves.add(square)
+			elif self.value < 0 and 0 < board.state[square[0]][square[1]].value < 99:
 				if not rtrn:
-					self.legalMoves.append(square)
+					self.legalMoves.add(square)
 				else:
-					legalMoves.append(square)
+					legalMoves.add(square)
 		if rtrn:
 			return legalMoves
 
-	def rook_legal_moves(self, row, column, state, rtrn = False):
+	def rook_legal_moves(self, row, column, board, rtrn = False):
 		if rtrn:
-			legalMoves = []
+			legalMoves = set()
 		# Check front spaces
 		tempRow = row
 		tempColumn = column
-		while state[tempRow-1][tempColumn].value == 0:
+		while board.state[tempRow-1][tempColumn].value == 0:
 			if not rtrn:
-				self.legalMoves.append((tempRow-1, tempColumn))
+				self.legalMoves.add((tempRow-1, tempColumn))
 			else:
-				legalMoves.append((tempRow-1, tempColumn))
+				legalMoves.add((tempRow-1, tempColumn))
 			tempRow -= 1
 		# Check for enemies
-		if self.value > 0 and state[tempRow-1][tempColumn].value < 0:
+		if self.value > 0 and board.state[tempRow-1][tempColumn].value < 0:
 			if not rtrn:
-				self.legalMoves.append((tempRow-1, tempColumn))
+				self.legalMoves.add((tempRow-1, tempColumn))
 			else:
-				legalMoves.append((tempRow-1, tempColumn))
-		elif self.value < 0 and 0 < state[tempRow-1][tempColumn].value < 99:
+				legalMoves.add((tempRow-1, tempColumn))
+		elif self.value < 0 and 0 < board.state[tempRow-1][tempColumn].value < 99:
 			if not rtrn:
-				self.legalMoves.append((tempRow-1, tempColumn))
+				self.legalMoves.add((tempRow-1, tempColumn))
 			else:
-				legalMoves.append((tempRow-1, tempColumn))
+				legalMoves.add((tempRow-1, tempColumn))
 		# Check back spaces
 		tempRow = row
-		while state[tempRow+1][tempColumn].value == 0:
+		while board.state[tempRow+1][tempColumn].value == 0:
 			if not rtrn:
-				self.legalMoves.append((tempRow+1, tempColumn))
+				self.legalMoves.add((tempRow+1, tempColumn))
 			else:
-				legalMoves.append((tempRow+1, tempColumn))
+				legalMoves.add((tempRow+1, tempColumn))
 			tempRow += 1
 		# Check for enemies
-		if self.value > 0 and state[tempRow+1][tempColumn].value < 0:
+		if self.value > 0 and board.state[tempRow+1][tempColumn].value < 0:
 			if not rtrn:
-				self.legalMoves.append((tempRow+1, tempColumn))
+				self.legalMoves.add((tempRow+1, tempColumn))
 			else:
-				legalMoves.append((tempRow+1, tempColumn))
-		elif self.value < 0 and 0 < state[tempRow+1][tempColumn].value < 99:
+				legalMoves.add((tempRow+1, tempColumn))
+		elif self.value < 0 and 0 < board.state[tempRow+1][tempColumn].value < 99:
 			if not rtrn:
-				self.legalMoves.append((tempRow+1, tempColumn))
+				self.legalMoves.add((tempRow+1, tempColumn))
 			else:
-				legalMoves.append((tempRow+1, tempColumn))
+				legalMoves.add((tempRow+1, tempColumn))
 		# Check left spaces
 		tempRow = row
-		while state[tempRow][tempColumn-1].value == 0:
+		while board.state[tempRow][tempColumn-1].value == 0:
 			if not rtrn:
-				self.legalMoves.append((tempRow, tempColumn-1))
+				self.legalMoves.add((tempRow, tempColumn-1))
 			else:
-				legalMoves.append((tempRow, tempColumn-1))
+				legalMoves.add((tempRow, tempColumn-1))
 			tempColumn -= 1
 		# Check for enemies
-		if self.value > 0 and state[tempRow][tempColumn-1].value < 0:
+		if self.value > 0 and board.state[tempRow][tempColumn-1].value < 0:
 			if not rtrn:
-				self.legalMoves.append((tempRow, tempColumn-1))
+				self.legalMoves.add((tempRow, tempColumn-1))
 			else:
-				legalMoves.append((tempRow, tempColumn-1))
-		elif self.value < 0 and 0 < state[tempRow][tempColumn-1].value < 99:
+				legalMoves.add((tempRow, tempColumn-1))
+		elif self.value < 0 and 0 < board.state[tempRow][tempColumn-1].value < 99:
 			if not rtrn:
-				self.legalMoves.append((tempRow, tempColumn-1))
+				self.legalMoves.add((tempRow, tempColumn-1))
 			else:
-				legalMoves.append((tempRow, tempColumn-1))
+				legalMoves.add((tempRow, tempColumn-1))
 		# Check right spaces
 		tempColumn = column
-		while state[tempRow][tempColumn+1].value == 0:
+		while board.state[tempRow][tempColumn+1].value == 0:
 			if not rtrn:
-				self.legalMoves.append((tempRow, tempColumn+1))
+				self.legalMoves.add((tempRow, tempColumn+1))
 			else:
-				legalMoves.append((tempRow, tempColumn+1))
+				legalMoves.add((tempRow, tempColumn+1))
 			tempColumn += 1
 		# Check for enemies
-		if self.value > 0 and state[tempRow][tempColumn+1].value < 0:
+		if self.value > 0 and board.state[tempRow][tempColumn+1].value < 0:
 			if not rtrn:
-				self.legalMoves.append((tempRow, tempColumn+1))
+				self.legalMoves.add((tempRow, tempColumn+1))
 			else:
-				legalMoves.append((tempRow, tempColumn+1))
-		elif self.value < 0 and 0 < state[tempRow][tempColumn+1].value < 99:
+				legalMoves.add((tempRow, tempColumn+1))
+		elif self.value < 0 and 0 < board.state[tempRow][tempColumn+1].value < 99:
 			if not rtrn:
-				self.legalMoves.append((tempRow, tempColumn+1))
+				self.legalMoves.add((tempRow, tempColumn+1))
 			else:
-				legalMoves.append((tempRow, tempColumn+1))
+				legalMoves.add((tempRow, tempColumn+1))
 
 		if rtrn:
 			return legalMoves
@@ -629,16 +658,16 @@ class Piece:
 		kingMoves = [(row+1, column), (row-1, column), (row, column-1), (row, column+1), (row+1, column+1), (row+1, column-1), (row-1, column+1), (row-1, column-1)]
 
 		# Calculate all balck legal moves
-		possibleBlackMoves = []
+		possibleBlackMoves = set()
 		for piece in board.blackPieces:
 			for move in piece.return_legal_moves(board):
-				possibleBlackMoves.append(move)
+				possibleBlackMoves.add(move)
 
 		# For each of the possible king moves, make sure he isn't under attack by moving to a possible black move
 		for square in kingMoves:
 			if (square[0], square[1]) not in possibleBlackMoves:
 				if board.state[square[0]][square[1]].value == 0 or board.state[square[0]][square[1]].value < 0:
-					self.legalMoves.append(square)
+					self.legalMoves.add(square)
 
 		# Check for king side castle
 		# Make sure neither king nor rook has moved
@@ -647,26 +676,26 @@ class Piece:
 			if board.state[self.row][self.column+1].value == 0 and board.state[self.row][self.column+2].value == 0:
 				# Make sure king isn't in check, doesn't cross over or end on a square being attacked
 				if (self.row, self.column) not in possibleBlackMoves and (self.row, self.column+1) not in possibleBlackMoves and (self.row, self.column+2) not in possibleBlackMoves:
-					self.legalMoves.append((self.row, self.column+2))
+					self.legalMoves.add((self.row, self.column+2))
 		# Check for queen side castle
 		if not self.moved and not board.state[self.row][self.column-4].moved:
 			if board.state[self.row][self.column-1].value == 0 and board.state[self.row][self.column-2].value == 0 and board.state[self.row][self.column-3].value == 0:
 				if (self.row, self.column) not in possibleBlackMoves and (self.row, self.column-1) not in possibleBlackMoves and (self.row, self.column-2) not in possibleBlackMoves:
-					self.legalMoves.append((self.row, self.column-2))
+					self.legalMoves.add((self.row, self.column-2))
 
 	def black_king_legal_moves(self, row, column, board):
 		kingMoves = [(row+1, column), (row-1, column), (row, column-1), (row, column+1), (row+1, column+1), (row+1, column-1), (row-1, column+1), (row-1, column-1)]
 		# Calculate all possible white moves
-		possibleWhiteMoves = []
+		possibleWhiteMoves = set()
 		for piece in board.whitePieces:
 			for move in piece.return_legal_moves(board):
-				possibleWhiteMoves.append(move)
+				possibleWhiteMoves.add(move)
 
 		# For each of the possible king moves, make sure he isn't under attack by moving to a possible black move
 		for square in kingMoves:
 			if (square[0], square[1]) not in possibleWhiteMoves:
 				if board.state[square[0]][square[1]].value == 0 or 0 < board.state[square[0]][square[1]].value < 99:
-					self.legalMoves.append(square)
+					self.legalMoves.add(square)
 
 		# Check for king side castle
 		# Make sure neither king nor rook has moved
@@ -675,12 +704,12 @@ class Piece:
 			if board.state[self.row][self.column+1].value == 0 and board.state[self.row][self.column+2].value == 0:
 				# Make sure king isn't in check, doesn't cross over or end on a square being attacked
 				if (self.row, self.column) not in possibleWhiteMoves and (self.row, self.column+1) not in possibleWhiteMoves and (self.row, self.column+2) not in possibleWhiteMoves:
-					self.legalMoves.append((self.row, self.column+2))
+					self.legalMoves.add((self.row, self.column+2))
 		# Check for queen side castle
 		if not self.moved and not board.state[self.row][self.column-4].moved:
 			if board.state[self.row][self.column-1].value == 0 and board.state[self.row][self.column-2].value == 0 and board.state[self.row][self.column-3].value == 0:
 				if (self.row, self.column) not in possibleWhiteMoves and (self.row, self.column-1) not in possibleWhiteMoves and (self.row, self.column-2) not in possibleWhiteMoves:
-					self.legalMoves.append((self.row, self.column-2))
+					self.legalMoves.add((self.row, self.column-2))
 
 
 # Given a row and column of the state matrix it returns a touple of the coordinates for the top left of the rectangle on the board
@@ -729,9 +758,15 @@ def draw_grid_markers(surface):
 		surface.blit(textSurfaceObj, (LEFTOFFSET + (i)*SQUARESIZE + SQUARESIZE//2 - fontSize//2, screenHeight - BOTTOMOFFSET))
 
 
+def display_white_wins():
+	todo = "this"
+
+def display_black_wins():
+	todo = "this"
+
 
 board = Board()
-legalMoves = []
+legalMoves = set()
 
 # Game loop
 while True:
@@ -755,42 +790,29 @@ while True:
 						board.set_piece_lists()
 						board.whiteMove = not board.whiteMove
 						board.anyPieceIsHighlighted = False
-						legalMoves = []
+						legalMoves = set()
 						if board.whiteMove:
-							board.whiteCheck = board.white_in_check()
-							if board.whiteCheck:
-								print("White check")
+							board.whiteInCheck = board.white_in_check()
+							if board.whiteInCheck:
+								display_black_wins()
 						else:
 							board.blackCheck = board.black_in_check()
-							if board.blackCheck:
-								print("Black check")
-					# If a white peice is clicked, set new piece object, change board to have highlighted piece, and set legal moves
-					elif board.whiteMove and 0 < board.state[rowCol[0]][rowCol[1]].value < 99:
-						piece = board.state[rowCol[0]][rowCol[1]]
-						board.anyPieceIsHighlighted = True						
-						piece.set_legal_moves(board)
-						legalMoves = piece.legalMoves
-					# If a black peice is clicked, set new piece object, change board to have highlighted piece, and set legal moves
-					elif not board.whiteMove and board.state[rowCol[0]][rowCol[1]].value  < 0:
-						piece = board.state[rowCol[0]][rowCol[1]]
-						board.anyPieceIsHighlighted = True	
-						piece.set_legal_moves(board)
-						legalMoves = piece.legalMoves
-				else:
-					# If a white peice is clicked, set new piece object, change board to have highlighted piece, and set legal moves
-					if board.whiteMove and 0 < board.state[rowCol[0]][rowCol[1]].value  < 99:
-						piece = board.state[rowCol[0]][rowCol[1]]
-						board.anyPieceIsHighlighted = True						
-						piece.set_legal_moves(board)
-						legalMoves = piece.legalMoves
-					# If a black peice is clicked, set new piece object, change board to have highlighted piece, and set legal moves
-					elif not board.whiteMove and board.state[rowCol[0]][rowCol[1]].value  < 0:
-						piece = board.state[rowCol[0]][rowCol[1]]
-						board.anyPieceIsHighlighted = True	
-						piece.set_legal_moves(board)
-						legalMoves = piece.legalMoves					
+
+				# If a white peice is clicked, set new piece object, change board to have highlighted piece, and set legal moves
+				if board.whiteMove and 0 < board.state[rowCol[0]][rowCol[1]].value  < 99:
+					piece = board.state[rowCol[0]][rowCol[1]]
+					board.anyPieceIsHighlighted = True						
+					piece.set_legal_moves(board)
+					legalMoves = piece.legalMoves
+				# If a black peice is clicked, set new piece object, change board to have highlighted piece, and set legal moves
+				elif not board.whiteMove and board.state[rowCol[0]][rowCol[1]].value  < 0:
+					piece = board.state[rowCol[0]][rowCol[1]]
+					board.anyPieceIsHighlighted = True	
+					piece.set_legal_moves(board)
+					legalMoves = piece.legalMoves
+
 			# If click was off the board then set legal moves to empty
 			else:
-				legalMoves = []
+				legalMoves = set()
 	pygame.display.update()
 	fpsClock.tick(FPS)
