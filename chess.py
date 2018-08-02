@@ -248,38 +248,40 @@ class Board:
 		self.set_piece_lists()
 
 	def white_in_check(self):
+		check = False
 		# Find white king
 		for row in range(len(self.state)):
 			for column in range(len(self.state[row])):
 				if self.state[row][column].value == 6:
 					king = self.state[row][column]
 
-		# Calculate all balck legal moves
-		self.possibleBlackMoves = set()
+		# See if for all black moves, white is not in check
 		for piece in self.blackPieces:
-			for move in piece.return_legal_moves(self):
-				self.possibleBlackMoves.add(move)
-
-		return (king.row, king.column) in self.possibleBlackMoves
-
+			if not check:
+				for move in piece.return_all_moves(self):
+					if move == (king.row, king.column):
+						check = True
+		return check
 
 	def white_in_check_mate(self):
 		todo = "this"
 
 	def black_in_check(self):
-		# Find white king
+		check = False
+		# Find black king
 		for row in range(len(self.state)):
 			for column in range(len(self.state[row])):
 				if self.state[row][column].value == -6:
 					king = self.state[row][column]
-
-		# Calculate all possible white moves
-		possibleWhiteMoves = set()
+					
+		# See if for all white moves, black is not in check
 		for piece in self.whitePieces:
-			for move in piece.return_legal_moves(self):
-				possibleWhiteMoves.add(move)
+			if not check:
+				for move in piece.return_all_moves(self):
+					if move == (king.row, king.column):
+						check = True
+		return check
 
-		return (king.row, king.column) in possibleWhiteMoves
 	
 
 	def black_in_check_mate(self):
@@ -383,7 +385,7 @@ class Piece:
 				if tempBoard.black_in_check():
 					self.legalMoves.remove(move)
 
-	def return_legal_moves(self, board):
+	def return_all_moves(self, board):
 		legalMoves = set()
 		# Set legal moves for white pawns
 		if self.value == 1:
@@ -406,6 +408,12 @@ class Piece:
 			tempLegalMoves = (self.rook_legal_moves(self.row, self.column, board, rtrn = True))
 			for move in tempLegalMoves:
 				legalMoves.add(move)
+		# Set legal moves for all kings
+		elif self.value == -6:
+			kingMoves = [(self.row+1, self.column), (self.row-1, self.column), (self.row, self.column-1), (self.row, self.column+1), (self.row+1, self.column+1), (self.row+1, self.column-1), (self.row-1, self.column+1), (self.row-1, self.column-1)]
+			for move in kingMoves:
+				legalMoves.add(move)
+
 		return legalMoves
 
 	def white_pawn_legal_moves(self, row, column, board, rtrn = False):
@@ -660,7 +668,7 @@ class Piece:
 		# Calculate all balck legal moves
 		possibleBlackMoves = set()
 		for piece in board.blackPieces:
-			for move in piece.return_legal_moves(board):
+			for move in piece.return_all_moves(board):
 				possibleBlackMoves.add(move)
 
 		# For each of the possible king moves, make sure he isn't under attack by moving to a possible black move
@@ -688,7 +696,7 @@ class Piece:
 		# Calculate all possible white moves
 		possibleWhiteMoves = set()
 		for piece in board.whitePieces:
-			for move in piece.return_legal_moves(board):
+			for move in piece.return_all_moves(board):
 				possibleWhiteMoves.add(move)
 
 		# For each of the possible king moves, make sure he isn't under attack by moving to a possible black move
