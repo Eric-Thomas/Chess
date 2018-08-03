@@ -249,43 +249,73 @@ class Board:
 
 	def white_in_check(self):
 		check = False
+		king = "capturable"
 		# Find white king
 		for row in range(len(self.state)):
 			for column in range(len(self.state[row])):
 				if self.state[row][column].value == 6:
 					king = self.state[row][column]
 
-		# See if for all black moves, white is not in check
-		for piece in self.blackPieces:
-			if not check:
-				for move in piece.return_all_moves(self):
-					if move == (king.row, king.column):
-						check = True
+		# Edge case for removing illegal moves
+		# This happens when testing all possible moves for white
+		# If a move captures the king then the king variable would not be found in the above for loop	
+		if king == "capturable":
+			check = True
+		else:
+			# See if for all black moves, white is not in check
+			for piece in self.blackPieces:
+				if not check:
+					for move in piece.return_all_moves(self):
+						if move == (king.row, king.column):
+							check = True
 		return check
 
-	def white_in_check_mate(self):
-		todo = "this"
+	def white_has_no_legal_moves(self):
+		noMoves = True
+		tempBoard = copy.deepcopy(self)
+		# Check all of whites pieces and see if they have a legal move
+		for piece in tempBoard.whitePieces:
+			if noMoves:
+				piece.set_legal_moves(self)
+				if piece.legalMoves != set():
+					noMoves = False
+
+		return noMoves
 
 	def black_in_check(self):
 		check = False
+		king = "capturable"
 		# Find black king
 		for row in range(len(self.state)):
 			for column in range(len(self.state[row])):
 				if self.state[row][column].value == -6:
 					king = self.state[row][column]
 					
-		# See if for all white moves, black is not in check
-		for piece in self.whitePieces:
-			if not check:
-				for move in piece.return_all_moves(self):
-					if move == (king.row, king.column):
-						check = True
+		# Edge case for removing illegal moves
+		# This happens when testing all possible moves for white
+		# If a move captures the king then the king variable would not be found in the above for loop	
+		if king == "capturable":
+			check = True
+		else:
+			# See if for all white moves, black is not in check
+			for piece in self.whitePieces:
+				if not check:
+					for move in piece.return_all_moves(self):
+						if move == (king.row, king.column):
+							check = True
 		return check
 
-	
+	def black_has_no_legal_moves(self):
+		noMoves = True
+		tempBoard = copy.deepcopy(self)
+		# Check all of blacks pieces and see if they have a legal move
+		for piece in tempBoard.blackPieces:
+			if noMoves:
+				piece.set_legal_moves(self)
+				if piece.legalMoves != set():
+					noMoves = False
 
-	def black_in_check_mate(self):
-		todo = "this"
+		return noMoves
 
 # Piece Class
 """
@@ -409,7 +439,7 @@ class Piece:
 			for move in tempLegalMoves:
 				legalMoves.add(move)
 		# Set legal moves for all kings
-		elif self.value == -6:
+		elif self.value == 6 or self.value == -6:
 			kingMoves = [(self.row+1, self.column), (self.row-1, self.column), (self.row, self.column-1), (self.row, self.column+1), (self.row+1, self.column+1), (self.row+1, self.column-1), (self.row-1, self.column+1), (self.row-1, self.column-1)]
 			for move in kingMoves:
 				legalMoves.add(move)
@@ -752,9 +782,8 @@ def on_board(xCoord, yCoord):
 def draw_grid_markers(surface):
 	# Create A-H and 1-8 markers
 	fontSize = 16
-	fontObj = pygame.font.Font("freesansbold.ttf", fontSize)
 	letters = ["A", "B", "C", "D", "E", "F", "G", "H"]
-	numbers = ["1", "2", "3", "4", "5", "6", "7", "8"]
+	numbers = ["8", "7", "6", "5", "4", "3", "2", "1"]
 	for i in range(len(numbers)):
 		font = pygame.font.SysFont(None, fontSize)
 		textSurfaceObj = font.render(numbers[i], True, WHITE)
@@ -766,12 +795,54 @@ def draw_grid_markers(surface):
 		surface.blit(textSurfaceObj, (LEFTOFFSET + (i)*SQUARESIZE + SQUARESIZE//2 - fontSize//2, screenHeight - BOTTOMOFFSET))
 
 
-def display_white_wins():
-	todo = "this"
-
+def display_white_wins(surface):
+	pygame.time.wait(2000)
+	fontSize = 32
+	font = pygame.font.SysFont(None, fontSize)
+	textSurfaceObj1 = font.render("White wins and Black is", True, WHITE)
+	textSurfaceObj2 = font.render("a stinky doo doo head :p", True, WHITE)
+	textRectObj1 = textSurfaceObj1.get_rect()
+	textRectObj2 = textSurfaceObj2.get_rect()
+	textRectObj1.center = (screenWidth//2, screenHeight//2)
+	textRectObj2.center = (screenWidth//2, screenHeight//2 + 45)
+	surface.fill(DARKGREEN)
+	surface.blit(textSurfaceObj1, textRectObj1)
+	surface.blit(textSurfaceObj2, textRectObj2)
+	playAgain = ask_user_to_play_again(surface)
+	pygame.display.update()
+	pygame.time.wait(5000)
+	"""
+	if playAgain:
+		board = Board()
+	else:
+		pygame.quit()
+		sys.exit()
+	"""
 def display_black_wins():
+	pygame.time.wait(2000)
+	fontSize = 32
+	font = pygame.font.SysFont(None, fontSize)
+	textSurfaceObj1 = font.render("Black wins and White is", True, WHITE)
+	textSurfaceObj2 = font.render("a stinky doo doo head :p", True, WHITE)
+	textRectObj1 = textSurfaceObj1.get_rect()
+	textRectObj2 = textSurfaceObj2.get_rect()
+	textRectObj1.center = (screenWidth//2, screenHeight//2)
+	textRectObj2.center = (screenWidth//2, screenHeight//2 + 45)
+	surface.fill(DARKGREEN)
+	surface.blit(textSurfaceObj1, textRectObj1)
+	surface.blit(textSurfaceObj2, textRectObj2)
+	playAgain = ask_user_to_play_again(surface)
+	pygame.display.update()
+	pygame.time.wait(5000)
+	"""
+	if playAgain:
+		board = Board()
+	else:
+		pygame.quit()
+		sys.exit()
+	"""
+def ask_user_to_play_again(surface):
 	todo = "this"
-
 
 board = Board()
 legalMoves = set()
@@ -799,12 +870,17 @@ while True:
 						board.whiteMove = not board.whiteMove
 						board.anyPieceIsHighlighted = False
 						legalMoves = set()
-						if board.whiteMove:
-							board.whiteInCheck = board.white_in_check()
-							if board.whiteInCheck:
-								display_black_wins()
-						else:
-							board.blackCheck = board.black_in_check()
+						if board.white_has_no_legal_moves():
+							if board.white_in_check():
+								pygame.display.update()
+								display_black_wins(DISPLAYSURF)
+						if board.black_has_no_legal_moves():
+							if board.black_in_check():
+								pygame.display.update()
+								display_white_wins(DISPLAYSURF)
+						if board.white_has_no_legal_moves() and board.black_has_no_legal_moves():
+							pygame.display.update()
+							display_stalemate(DISPLAYSURF)
 
 				# If a white peice is clicked, set new piece object, change board to have highlighted piece, and set legal moves
 				if board.whiteMove and 0 < board.state[rowCol[0]][rowCol[1]].value  < 99:
