@@ -204,6 +204,14 @@ class Board:
 		# Make square where piece was previously now empty
 		self.state[piece.row][piece.column] = Piece()
 
+		# Check to see if piece is a white advanced pawn
+		if piece.value == 1 and row == 2:
+			self.state[row][column] = Piece(piece="queen", color="white", row=row, column=column)
+		# Check to see if piece is a black advanced pawn
+		if piece.value == -1 and row == 9:
+			self.state[row][column] = Piece(piece="queen", color="black", row=row, column=column)
+
+
 		# Check to see if move is a castle
 		if piece.value == 6 or piece.value == -6:
 			if column == piece.column-2 or column == piece.column+2:
